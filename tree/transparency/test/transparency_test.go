@@ -108,21 +108,24 @@ func TestTreeWithAuditorHeads(t *testing.T) {
 	}
 }
 
-func TestTree(t *testing.T) {
+func TestTreeSearchForVersion(t *testing.T) {
 	tree, store, _, _ := NewTree(t, transparency.ContactMonitoring)
 
 	var (
-		keys   [][]byte
-		values [][]byte
+		repeatKey       = random()
+		repeatKeyValues [][]byte
+
+		randomKeys      [][]byte
+		randomKeyValues [][]byte
 	)
 
 	for i := 0; i < 100; i++ {
-		dice := mrand.Intn(4)
+		dice := mrand.Intn(5)
 
-		if dice == 0 && len(keys) > 0 { // Search for an existing key.
-			i := mrand.Intn(len(keys))
+		if dice == 0 && len(randomKeys) > 0 { // Search for an existing random key, most recent version.
+			i := mrand.Intn(len(randomKeys))
 			req := &pb.TreeSearchRequest{
-				SearchKey:   keys[i],
+				SearchKey:   randomKeys[i],
 				Consistency: Last(store),
 			}
 			res, err := tree.Search(req)
@@ -130,10 +133,25 @@ func TestTree(t *testing.T) {
 				t.Fatal(err)
 			} else if err := transparency.VerifySearch(store, req, res); err != nil {
 				t.Fatal(err)
-			} else if !bytes.Equal(res.Value.Value, values[i]) {
+			} else if !bytes.Equal(res.Value.Value, randomKeyValues[i]) {
 				t.Fatal("unexpected value returned")
 			}
-		} else if dice == 1 { // Add a new key.
+		} else if dice == 1 && len(repeatKeyValues) > 0 { // Search for a specific version of the repeat key
+			version := uint32(mrand.Intn(len(repeatKeyValues)))
+			req := &pb.TreeSearchRequest{
+				SearchKey:   repeatKey,
+				Consistency: Last(store),
+				Version:     &version,
+			}
+			res, err := tree.Search(req)
+			if err != nil {
+				t.Fatal(err)
+			} else if err := transparency.VerifySearch(store, req, res); err != nil {
+				t.Fatal(err)
+			} else if !bytes.Equal(res.Value.Value, repeatKeyValues[version]) {
+				t.Fatal("unexpected value returned")
+			}
+		} else if dice == 2 { // Add a new random key.
 			key, value := random(), random()
 			req := &pb.UpdateRequest{
 				SearchKey:   key,
@@ -146,11 +164,11 @@ func TestTree(t *testing.T) {
 			} else if err := transparency.VerifyUpdate(store, req, res); err != nil {
 				t.Fatal(err)
 			}
-			keys, values = append(keys, key), append(values, value)
-		} else if dice == 2 && len(keys) > 0 { // Update an existing key.
-			i, value := mrand.Intn(len(keys)), random()
+			randomKeys, randomKeyValues = append(randomKeys, key), append(randomKeyValues, value)
+		} else if dice == 3 && len(randomKeys) > 0 { // Update the repeat key
+			value := random()
 			req := &pb.UpdateRequest{
-				SearchKey:   keys[i],
+				SearchKey:   repeatKey,
 				Value:       value,
 				Consistency: Last(store),
 			}
@@ -160,8 +178,8 @@ func TestTree(t *testing.T) {
 			} else if err := transparency.VerifyUpdate(store, req, res); err != nil {
 				t.Fatal(err)
 			}
-			values[i] = value
-		} else if dice == 3 && len(keys) > 0 { // Add some fake updates.
+			repeatKeyValues = append(repeatKeyValues, value)
+		} else if dice == 4 && (len(randomKeys) > 0 || len(repeatKeyValues) > 0) { // Add some fake updates.
 			if err := tree.BatchUpdateFake(5); err != nil {
 				t.Fatal(err)
 			}

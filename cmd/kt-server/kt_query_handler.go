@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"crypto/subtle"
+	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -155,9 +156,16 @@ func aciSearch(req *pb.SearchRequest, tree *transparency.Tree) (*tpb.FullTreeHea
 	aciResponse, err := tree.Search(&tpb.TreeSearchRequest{
 		SearchKey:   append([]byte{util.AciPrefix}, req.Aci...),
 		Consistency: consistency,
+		Version:     req.AciVersion,
 	})
+	metrics.IncrCounterWithLabels([]string{"search_requests", "aci"}, 1, []metrics.Label{{Name: "hasVersion", Value: fmt.Sprint(req.AciVersion != nil)}, grpcStatusLabel(err)})
 
 	if err != nil {
+		// There's no use case for distinguishing "not found" vs "permission denied"
+		// and consolidating prevents information leakage.
+		if grpcError, _ := status.FromError(err); grpcError.Code() == codes.NotFound {
+			err = status.Error(codes.PermissionDenied, "provided value does not match expected value")
+		}
 		return nil, nil, err
 	} else if len(aciResponse.Value.Value) < 2 || aciResponse.Value.Value[0] != 0 {
 		return nil, nil, status.Error(codes.Internal, "unexpected response value")
@@ -175,10 +183,13 @@ func usernameHashSearch(req *pb.SearchRequest, tree *transparency.Tree) (*pb.Con
 	if len(req.UsernameHash) == 0 {
 		return nil, nil
 	}
+
 	usernameHashResponse, responseErr := tree.Search(&tpb.TreeSearchRequest{
 		SearchKey:   append([]byte{util.UsernameHashPrefix}, req.UsernameHash...),
 		Consistency: &tpb.Consistency{},
+		Version:     req.UsernameHashVersion,
 	})
+	metrics.IncrCounterWithLabels([]string{"search_requests", "username_hash"}, 1, []metrics.Label{{Name: "hasVersion", Value: fmt.Sprint(req.UsernameHashVersion != nil)}, grpcStatusLabel(responseErr)})
 
 	if responseErr != nil {
 		// A non-nil err should be returned except in the case where it's "not found".
@@ -210,13 +221,16 @@ func (h *KtQueryHandler) phoneNumberSearch(req *pb.SearchRequest, tree *transpar
 	if err != nil {
 		return nil, err
 	}
+
 	// A non-nil responseErr should be returned except in the case where it's "not found" for a phone number lookup.
 	// This is to prevent short-circuiting and creating a timing difference between an account that doesn't exist
 	// with the given phone number, and one that does but is undiscoverable.
 	phoneNumberResponse, responseErr := tree.Search(&tpb.TreeSearchRequest{
 		SearchKey:   append([]byte{util.NumberPrefix}, []byte(req.E164SearchRequest.GetE164())...),
 		Consistency: &tpb.Consistency{},
+		Version:     req.E164Version,
 	})
+	metrics.IncrCounterWithLabels([]string{"search_requests", "e164"}, 1, []metrics.Label{{Name: "hasVersion", Value: fmt.Sprint(req.E164Version != nil)}, grpcStatusLabel(responseErr)})
 
 	var valueForComparison []byte
 	if responseErr != nil {

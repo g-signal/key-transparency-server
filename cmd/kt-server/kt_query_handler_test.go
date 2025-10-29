@@ -118,9 +118,9 @@ func TestSearch_AciNotFound(t *testing.T) {
 		AciIdentityKey: validAciIdentityKey1,
 		Consistency:    &tpb.Consistency{},
 	}, tree)
-	if grpcError, ok := status.FromError(err); grpcError.Code() != codes.NotFound || !ok {
+	if grpcError, ok := status.FromError(err); grpcError.Code() != codes.PermissionDenied || !ok {
 		t.Fatalf("Expected %v, got %v",
-			codes.NotFound, err)
+			codes.PermissionDenied, err)
 	} else if resp != nil {
 		t.Fatalf("Expected no search response")
 	}
