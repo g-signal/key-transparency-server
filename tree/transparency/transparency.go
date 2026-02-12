@@ -412,10 +412,15 @@ func (t *Tree) PostUpdate(state *PostUpdateState) (*pb.UpdateResponse, error) {
 // to prevent incorrect state resulting from a race between the tombstone update and another user claiming
 // the old identifier.
 func (t *Tree) UpdateExistingIndexWithTombstoneValue(state *PreUpdateState) (*PostUpdateState, error) {
+	searchKeyTypeLabel, err := GetSearchKeyTypeLabel(state.GetUpdateRequest().GetSearchKey())
+	if err != nil {
+		return nil, err
+	}
+
 	result, err := t.prefixTree.Search(t.latest.TreeSize, state.index[:])
 	if err != nil {
 		if gprcError, ok := status.FromError(err); ok && gprcError.Code() == codes.NotFound {
-			metrics.IncrCounter([]string{"tombstone_update.index_not_found"}, 1)
+			metrics.IncrCounterWithLabels([]string{"tombstone_update.index_not_found"}, 1, []metrics.Label{searchKeyTypeLabel})
 			return nil, nil
 		}
 		return nil, err
@@ -433,7 +438,7 @@ func (t *Tree) UpdateExistingIndexWithTombstoneValue(state *PreUpdateState) (*Po
 	if !bytes.Equal(updateValue.GetValue(), state.req.GetExpectedPreUpdateValue()) {
 		// We would hit this case if another user claimed the old identifier, and their update made it into the log
 		// before the tombstone update did. Abort the tombstone update with no error.
-		metrics.IncrCounter([]string{"tombstone_update.unexpected_pre_update_value"}, 1)
+		metrics.IncrCounterWithLabels([]string{"tombstone_update.unexpected_pre_update_value"}, 1, []metrics.Label{searchKeyTypeLabel})
 		return nil, nil
 	}
 

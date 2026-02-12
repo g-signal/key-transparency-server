@@ -20,6 +20,7 @@ import (
 	"github.com/signalapp/keytransparency/cmd/internal/config"
 	"github.com/signalapp/keytransparency/cmd/internal/util"
 	"github.com/signalapp/keytransparency/cmd/kt-server/pb"
+	"github.com/signalapp/keytransparency/cmd/shared"
 	"github.com/signalapp/keytransparency/db"
 	"github.com/signalapp/keytransparency/tree/transparency"
 	tpb "github.com/signalapp/keytransparency/tree/transparency/pb"
@@ -154,7 +155,7 @@ func aciSearch(req *pb.SearchRequest, tree *transparency.Tree) (*tpb.FullTreeHea
 	}
 
 	aciResponse, err := tree.Search(&tpb.TreeSearchRequest{
-		SearchKey:   append([]byte{util.AciPrefix}, req.Aci...),
+		SearchKey:   append([]byte{shared.AciPrefix}, req.Aci...),
 		Consistency: consistency,
 		Version:     req.AciVersion,
 	})
@@ -185,7 +186,7 @@ func usernameHashSearch(req *pb.SearchRequest, tree *transparency.Tree) (*pb.Con
 	}
 
 	usernameHashResponse, responseErr := tree.Search(&tpb.TreeSearchRequest{
-		SearchKey:   append([]byte{util.UsernameHashPrefix}, req.UsernameHash...),
+		SearchKey:   append([]byte{shared.UsernameHashPrefix}, req.UsernameHash...),
 		Consistency: &tpb.Consistency{},
 		Version:     req.UsernameHashVersion,
 	})
@@ -226,7 +227,7 @@ func (h *KtQueryHandler) phoneNumberSearch(req *pb.SearchRequest, tree *transpar
 	// This is to prevent short-circuiting and creating a timing difference between an account that doesn't exist
 	// with the given phone number, and one that does but is undiscoverable.
 	phoneNumberResponse, responseErr := tree.Search(&tpb.TreeSearchRequest{
-		SearchKey:   append([]byte{util.NumberPrefix}, []byte(req.E164SearchRequest.GetE164())...),
+		SearchKey:   append([]byte{shared.NumberPrefix}, []byte(req.E164SearchRequest.GetE164())...),
 		Consistency: &tpb.Consistency{},
 		Version:     req.E164Version,
 	})
@@ -281,7 +282,7 @@ func (h *KtQueryHandler) monitor(req *pb.MonitorRequest) (*pb.MonitorResponse, e
 
 	monitorKeys := []*tpb.MonitorKey{
 		{
-			SearchKey:       append([]byte{util.AciPrefix}, req.Aci.GetAci()...),
+			SearchKey:       append([]byte{shared.AciPrefix}, req.Aci.GetAci()...),
 			EntryPosition:   req.Aci.GetEntryPosition(),
 			CommitmentIndex: req.Aci.GetCommitmentIndex(),
 		},
@@ -289,7 +290,7 @@ func (h *KtQueryHandler) monitor(req *pb.MonitorRequest) (*pb.MonitorResponse, e
 
 	if req.GetUsernameHash() != nil {
 		monitorKeys = append(monitorKeys, &tpb.MonitorKey{
-			SearchKey:       append([]byte{util.UsernameHashPrefix}, req.UsernameHash.GetUsernameHash()...),
+			SearchKey:       append([]byte{shared.UsernameHashPrefix}, req.UsernameHash.GetUsernameHash()...),
 			EntryPosition:   req.UsernameHash.GetEntryPosition(),
 			CommitmentIndex: req.UsernameHash.GetCommitmentIndex(),
 		})
@@ -297,7 +298,7 @@ func (h *KtQueryHandler) monitor(req *pb.MonitorRequest) (*pb.MonitorResponse, e
 
 	if req.GetE164() != nil {
 		monitorKeys = append(monitorKeys, &tpb.MonitorKey{
-			SearchKey:       append([]byte{util.NumberPrefix}, req.E164.GetE164()...),
+			SearchKey:       append([]byte{shared.NumberPrefix}, req.E164.GetE164()...),
 			EntryPosition:   req.E164.GetEntryPosition(),
 			CommitmentIndex: req.E164.GetCommitmentIndex(),
 		})

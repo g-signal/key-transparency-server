@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/signalapp/keytransparency/cmd/shared"
 	"github.com/signalapp/keytransparency/tree/transparency"
 	"github.com/signalapp/keytransparency/tree/transparency/math"
 	"github.com/signalapp/keytransparency/tree/transparency/pb"
@@ -348,7 +349,7 @@ func TestTombstoneUpdate_IndexExists_ExpectedValueMatches(t *testing.T) {
 	tree, store, _, _ := NewTree(t, transparency.ContactMonitoring)
 
 	// Insert a search key
-	searchKey := []byte("searchKey")
+	searchKey := append([]byte{shared.AciPrefix}, []byte("searchKey")...)
 	originalValue := append([]byte{testValuePrefix}, []byte("value1")...)
 
 	preUpdate, err := tree.PreUpdate(&pb.UpdateRequest{
@@ -404,7 +405,7 @@ func TestTombstoneUpdate_IndexExists_ExpectedValueDoesNotMatch(t *testing.T) {
 	tree, store, _, _ := NewTree(t, transparency.ContactMonitoring)
 
 	// Insert a search key
-	searchKey := []byte("searchKey")
+	searchKey := append([]byte{shared.AciPrefix}, []byte("searchKey")...)
 	originalValue := append([]byte{testValuePrefix}, []byte("value1")...)
 
 	preUpdate, err := tree.PreUpdate(&pb.UpdateRequest{
@@ -463,7 +464,7 @@ func TestTombstoneUpdate_IndexNotFound(t *testing.T) {
 	tree, store, _, _ := NewTree(t, transparency.ContactMonitoring)
 
 	// Insert a search key
-	searchKey := []byte("searchKey")
+	searchKey := append([]byte{shared.AciPrefix}, []byte("searchKey")...)
 	originalValue := append([]byte{testValuePrefix}, []byte("value1")...)
 
 	preUpdate, err := tree.PreUpdate(&pb.UpdateRequest{
@@ -483,7 +484,7 @@ func TestTombstoneUpdate_IndexNotFound(t *testing.T) {
 	}
 
 	// Update a different search key with the tombstone value
-	differentSearchKey := []byte("differentSearchKey")
+	differentSearchKey := append([]byte{shared.AciPrefix}, []byte("differentSearchKey")...)
 	preUpdate, err = tree.PreUpdate(&pb.UpdateRequest{
 		SearchKey:              differentSearchKey,
 		Value:                  tombstoneValue,

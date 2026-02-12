@@ -28,6 +28,7 @@ import (
 
 	"github.com/signalapp/keytransparency/cmd/internal/config"
 	"github.com/signalapp/keytransparency/cmd/internal/util"
+	"github.com/signalapp/keytransparency/cmd/shared"
 	"github.com/signalapp/keytransparency/db"
 	"github.com/signalapp/keytransparency/tree/transparency/pb"
 )
@@ -269,14 +270,14 @@ func updateFromBackfill(ctx context.Context, item map[string]types.AttributeValu
 	}
 	if len(account.ACIIdentityKey) > 0 {
 		if err := updater.update(ctx, withinBackfill,
-			append([]byte{util.AciPrefix}, accountID...),
+			append([]byte{shared.AciPrefix}, accountID...),
 			marshalValue(account.ACIIdentityKey), updateHandler, nil); err != nil {
 			return fmt.Errorf("updating %x ACI: %w", accountID, err)
 		}
 	}
 	if len(account.Number) > 0 {
 		if err := updater.update(ctx, withinBackfill,
-			append([]byte{util.NumberPrefix}, []byte(account.Number)...),
+			append([]byte{shared.NumberPrefix}, []byte(account.Number)...),
 			marshalValue(accountID), updateHandler, nil); err != nil {
 			return fmt.Errorf("updating %x Number: %w", accountID, err)
 		}
@@ -287,7 +288,7 @@ func updateFromBackfill(ctx context.Context, item map[string]types.AttributeValu
 			return fmt.Errorf("updating %x username hash: failed to base64 decode hash: %w", accountID, err)
 		}
 		if err := updater.update(ctx, withinBackfill,
-			append([]byte{util.UsernameHashPrefix}, usernameHash...),
+			append([]byte{shared.UsernameHashPrefix}, usernameHash...),
 			marshalValue(accountID), updateHandler, nil); err != nil {
 			return fmt.Errorf("updating %x username hash: %w", accountID, err)
 		}
@@ -309,20 +310,20 @@ func updateFromStream(ctx context.Context, data []byte, updateHandler *KtUpdateH
 	} else if pair.Prev == nil {
 		// New registration. ACI and number should always be present on these updates.
 		if err := updater.update(ctx, withinStream,
-			append([]byte{util.AciPrefix}, pair.Next.ACI...),
+			append([]byte{shared.AciPrefix}, pair.Next.ACI...),
 			marshalValue(pair.Next.ACIIdentityKey), updateHandler, nil); err != nil {
 			return fmt.Errorf("updating ACI: %w", err)
 		}
 
 		if err := updater.update(ctx, withinStream,
-			append([]byte{util.NumberPrefix}, []byte(pair.Next.Number)...),
+			append([]byte{shared.NumberPrefix}, []byte(pair.Next.Number)...),
 			marshalValue(pair.Next.ACI), updateHandler, nil); err != nil {
 			return fmt.Errorf("updating number: %w", err)
 		}
 
 		if len(pair.Next.UsernameHash) > 0 {
 			if err := updater.update(ctx, withinStream,
-				append([]byte{util.UsernameHashPrefix}, pair.Next.UsernameHash...),
+				append([]byte{shared.UsernameHashPrefix}, pair.Next.UsernameHash...),
 				marshalValue(pair.Next.ACI), updateHandler, nil); err != nil {
 				return fmt.Errorf("updating username hash: %w", err)
 			}
@@ -330,20 +331,20 @@ func updateFromStream(ctx context.Context, data []byte, updateHandler *KtUpdateH
 	} else if pair.Next == nil {
 		// Account deletion. Overwrite all associated mappings to point to a tombstone value.
 		if err := updater.update(ctx, withinStream,
-			append([]byte{util.AciPrefix}, pair.Prev.ACI...),
+			append([]byte{shared.AciPrefix}, pair.Prev.ACI...),
 			tombstoneBytes, updateHandler, marshalValue(pair.Prev.ACIIdentityKey)); err != nil {
 			return fmt.Errorf("updating ACI: %w", err)
 		}
 
 		if err := updater.update(ctx, withinStream,
-			append([]byte{util.NumberPrefix}, []byte(pair.Prev.Number)...),
+			append([]byte{shared.NumberPrefix}, []byte(pair.Prev.Number)...),
 			tombstoneBytes, updateHandler, marshalValue(pair.Prev.ACI)); err != nil {
 			return fmt.Errorf("updating number: %w", err)
 		}
 
 		if len(pair.Prev.UsernameHash) > 0 {
 			if err := updater.update(ctx, withinStream,
-				append([]byte{util.UsernameHashPrefix}, pair.Prev.UsernameHash...),
+				append([]byte{shared.UsernameHashPrefix}, pair.Prev.UsernameHash...),
 				tombstoneBytes, updateHandler, marshalValue(pair.Prev.ACI)); err != nil {
 				return fmt.Errorf("updating username hash: %w", err)
 			}
@@ -351,7 +352,7 @@ func updateFromStream(ctx context.Context, data []byte, updateHandler *KtUpdateH
 	} else {
 		if !bytes.Equal(pair.Prev.ACIIdentityKey, pair.Next.ACIIdentityKey) {
 			if err := updater.update(ctx, withinStream,
-				append([]byte{util.AciPrefix}, pair.Next.ACI...),
+				append([]byte{shared.AciPrefix}, pair.Next.ACI...),
 				marshalValue(pair.Next.ACIIdentityKey), updateHandler, nil); err != nil {
 				return fmt.Errorf("updating ACI: %w", err)
 			}
@@ -361,7 +362,7 @@ func updateFromStream(ctx context.Context, data []byte, updateHandler *KtUpdateH
 			if len(pair.Prev.UsernameHash) > 0 {
 				// Tombstone the old username hash
 				if err := updater.update(ctx, withinStream,
-					append([]byte{util.UsernameHashPrefix}, pair.Prev.UsernameHash...),
+					append([]byte{shared.UsernameHashPrefix}, pair.Prev.UsernameHash...),
 					tombstoneBytes, updateHandler, marshalValue(pair.Prev.ACI)); err != nil {
 					return fmt.Errorf("updating username hash: %w", err)
 				}
@@ -369,7 +370,7 @@ func updateFromStream(ctx context.Context, data []byte, updateHandler *KtUpdateH
 
 			if len(pair.Next.UsernameHash) > 0 {
 				if err := updater.update(ctx, withinStream,
-					append([]byte{util.UsernameHashPrefix}, pair.Next.UsernameHash...),
+					append([]byte{shared.UsernameHashPrefix}, pair.Next.UsernameHash...),
 					marshalValue(pair.Next.ACI), updateHandler, nil); err != nil {
 					return fmt.Errorf("updating username hash: %w", err)
 				}
@@ -380,7 +381,7 @@ func updateFromStream(ctx context.Context, data []byte, updateHandler *KtUpdateH
 			if len(pair.Prev.Number) > 0 {
 				// Tombstone the old phone number
 				if err := updater.update(ctx, withinStream,
-					append([]byte{util.NumberPrefix}, pair.Prev.Number...),
+					append([]byte{shared.NumberPrefix}, pair.Prev.Number...),
 					tombstoneBytes, updateHandler, marshalValue(pair.Prev.ACI)); err != nil {
 					return fmt.Errorf("updating number: %w", err)
 				}
@@ -388,7 +389,7 @@ func updateFromStream(ctx context.Context, data []byte, updateHandler *KtUpdateH
 
 			if len(pair.Next.Number) > 0 {
 				if err := updater.update(ctx, withinStream,
-					append([]byte{util.NumberPrefix}, []byte(pair.Next.Number)...),
+					append([]byte{shared.NumberPrefix}, []byte(pair.Next.Number)...),
 					marshalValue(pair.Next.ACI), updateHandler, nil); err != nil {
 					return fmt.Errorf("updating number: %w", err)
 				}

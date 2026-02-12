@@ -9,8 +9,8 @@ import (
 	"context"
 	"encoding/base64"
 
-	"github.com/signalapp/keytransparency/cmd/internal/util"
 	"github.com/signalapp/keytransparency/cmd/kt-server/pb"
+	"github.com/signalapp/keytransparency/cmd/shared"
 	"github.com/signalapp/keytransparency/tree/transparency"
 	tpb "github.com/signalapp/keytransparency/tree/transparency/pb"
 )
@@ -88,20 +88,20 @@ func handleSearch(client pb.KeyTransparencyQueryServiceClient) {
 	}
 
 	allVerificationsSuccessful := true
-	if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(util.AciPrefix, args.Aci, args.AciVersion), createTreeSearchResponse(res.Aci, res.TreeHead)); err != nil {
+	if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.AciPrefix, args.Aci, args.AciVersion), createTreeSearchResponse(res.Aci, res.TreeHead)); err != nil {
 		p.Printf("ACI verification failed: %v\n", err)
 		allVerificationsSuccessful = false
 	}
 
 	if res.E164 != nil {
-		if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(util.NumberPrefix, []byte(*e164), args.E164Version), createTreeSearchResponse(res.E164, res.TreeHead)); err != nil {
+		if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.NumberPrefix, []byte(*e164), args.E164Version), createTreeSearchResponse(res.E164, res.TreeHead)); err != nil {
 			p.Printf("E164 verification failed: %v\n", err)
 			allVerificationsSuccessful = false
 		}
 	}
 
 	if res.UsernameHash != nil {
-		if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(util.UsernameHashPrefix, args.UsernameHash, args.UsernameHashVersion), createTreeSearchResponse(res.UsernameHash, res.TreeHead)); err != nil {
+		if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.UsernameHashPrefix, args.UsernameHash, args.UsernameHashVersion), createTreeSearchResponse(res.UsernameHash, res.TreeHead)); err != nil {
 			p.Printf("Username hash verification failed: %v\n", err)
 			allVerificationsSuccessful = false
 		}
