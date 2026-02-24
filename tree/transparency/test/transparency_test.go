@@ -7,6 +7,7 @@ package test
 
 import (
 	"bytes"
+	"errors"
 	mrand "math/rand"
 	"testing"
 
@@ -437,12 +438,12 @@ func TestTombstoneUpdate_IndexExists_ExpectedValueDoesNotMatch(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Expected pre-update value does not match what's in the tree; abort update with no error
-	// but check that the search key still maps to original value
+	// Expected pre-update value does not match what's in the tree; abort update
+	// and check that the search key still maps to original value
 	_, err = tree.UpdateExistingIndexWithTombstoneValue(preUpdate)
 
-	if err != nil {
-		t.Fatalf("Expected no error")
+	if !errors.Is(err, transparency.ErrTombstoneUnexpectedPreUpdateValue) {
+		t.Fatalf("Expected error %v", transparency.ErrTombstoneUnexpectedPreUpdateValue)
 	}
 
 	// Search key should still map to original value
@@ -496,11 +497,11 @@ func TestTombstoneUpdate_IndexNotFound(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Index should not be found; abort update with no error
+	// Index should not be found; abort update
 	_, err = tree.UpdateExistingIndexWithTombstoneValue(preUpdate)
 
-	if err != nil {
-		t.Fatal("Expected no error")
+	if !errors.Is(err, transparency.ErrTombstoneIndexNotFound) {
+		t.Fatalf("Expected error %v", transparency.ErrTombstoneIndexNotFound)
 	}
 
 	// That different search key should still not be found

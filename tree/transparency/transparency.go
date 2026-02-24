@@ -45,10 +45,12 @@ const (
 )
 
 var (
-	ErrInvalidArgument    = errors.New("invalid request argument")
-	ErrOutOfRange         = errors.New("querying past end of log")
-	ErrFailedPrecondition = errors.New("failed precondition")
-	ErrDuplicateUpdate    = errors.New("duplicate update")
+	ErrInvalidArgument                   = errors.New("invalid request argument")
+	ErrOutOfRange                        = errors.New("querying past end of log")
+	ErrFailedPrecondition                = errors.New("failed precondition")
+	ErrDuplicateUpdate                   = errors.New("duplicate update")
+	ErrTombstoneIndexNotFound            = errors.New("tombstone index not found")
+	ErrTombstoneUnexpectedPreUpdateValue = errors.New("tombstone unexpected pre-update value")
 )
 
 type ErrAuditorSignatureVerificationFailed struct {
@@ -405,6 +407,10 @@ type PostUpdateState struct {
 	err error
 }
 
+func (p *PostUpdateState) Err() error {
+	return p.err
+}
+
 // PostUpdate does any calculations required to finish an Update operation that
 // can be performed after exiting the critical path.
 func (t *Tree) PostUpdate(state *PostUpdateState) (*pb.UpdateResponse, error) {
@@ -442,16 +448,10 @@ func (t *Tree) PostUpdate(state *PostUpdateState) (*pb.UpdateResponse, error) {
 // to prevent incorrect state resulting from a race between the tombstone update and another user claiming
 // the old identifier.
 func (t *Tree) UpdateExistingIndexWithTombstoneValue(state *PreUpdateState) (*PostUpdateState, error) {
-	searchKeyTypeLabel, err := GetSearchKeyTypeLabel(state.Req.GetSearchKey())
-	if err != nil {
-		return nil, err
-	}
-
 	result, err := t.prefixTree.Search(t.latest.TreeSize, state.Index[:])
 	if err != nil {
 		if gprcError, ok := status.FromError(err); ok && gprcError.Code() == codes.NotFound {
-			metrics.IncrCounterWithLabels([]string{"tombstone_update.index_not_found"}, 1, []metrics.Label{searchKeyTypeLabel})
-			return nil, nil
+			return nil, ErrTombstoneIndexNotFound
 		}
 		return nil, err
 	}
@@ -467,9 +467,8 @@ func (t *Tree) UpdateExistingIndexWithTombstoneValue(state *PreUpdateState) (*Po
 
 	if !bytes.Equal(updateValue.GetValue(), state.Req.GetExpectedPreUpdateValue()) {
 		// We would hit this case if another user claimed the old identifier, and their update made it into the log
-		// before the tombstone update did. Abort the tombstone update with no error.
-		metrics.IncrCounterWithLabels([]string{"tombstone_update.unexpected_pre_update_value"}, 1, []metrics.Label{searchKeyTypeLabel})
-		return nil, nil
+		// before the tombstone update did. Abort the tombstone update.
+		return nil, ErrTombstoneUnexpectedPreUpdateValue
 	}
 
 	postUpdateState, err := t.BatchUpdate([]*PreUpdateState{state})
@@ -509,7 +508,7 @@ func (t *Tree) BatchUpdate(states []*PreUpdateState) ([]*PostUpdateState, error)
 
 	// Our goal in the entire remainder of this function is to filter out update
 	// requests that would set an index to the same value that it already has.
-	// While not strictly required for the integrity of the log, these updates 
+	// While not strictly required for the integrity of the log, these updates
 	// would make it impossible for clients to monitor a key for unexpected changes.
 
 	// First, check if we can find `states` elements that duplicate a
