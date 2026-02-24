@@ -120,8 +120,8 @@ func (s *Streamer) run(ctx context.Context, name string, startAtTimestamp time.T
 			// checkpointing past an update that we might've failed to sequence.
 			state.sinceLast += 1
 			state.wg.Add(1)
+			updatesWg.Add(1)
 			go func(ctx context.Context, data []byte, wg *sync.WaitGroup) {
-				updatesWg.Add(1)
 				defer updatesWg.Done()
 				for {
 					select {
