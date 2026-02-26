@@ -45,7 +45,6 @@ type Config struct {
 
 	LogOutputFile string `yaml:"log-output"`
 	MetricsAddr   string `yaml:"metrics-addr"`
-	DatadogAddr   string `yaml:"datadog-addr"`
 	OtlpEnabled   bool   `yaml:"otlp-enabled"` // Whether to configure OpenTelemetry Metrics
 	HealthAddr    string `yaml:"health-addr"`
 

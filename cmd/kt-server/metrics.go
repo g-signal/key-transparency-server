@@ -12,7 +12,6 @@ import (
 	"net/http/pprof"
 
 	metrics "github.com/hashicorp/go-metrics"
-	"github.com/hashicorp/go-metrics/datadog"
 	"github.com/hashicorp/go-metrics/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	ktmetrics "github.com/signalapp/keytransparency/cmd/kt-server/metrics"
@@ -42,22 +41,13 @@ func endpointLabel(endpoint string) metrics.Label {
 	return metrics.Label{Name: "endpoint", Value: endpoint}
 }
 
-func exportMetrics(ctx context.Context, addr string, otlpEnabled bool) {
+func exportMetrics(ctx context.Context, otlpEnabled bool) {
 	prom, err := prometheus.NewPrometheusSink()
 	if err != nil {
 		util.Log().Fatalf("building prometheus sink: %v", err)
 	}
 	sink := metrics.FanoutSink{prom}
 	defer sink.Shutdown()
-
-	if addr != "" {
-		util.Log().Infof("Initiating datadog metrics at %q", addr)
-		ddog, err := datadog.NewDogStatsdSink(addr, "")
-		if err != nil {
-			util.Log().Fatalf("error initializing statsd client: %v", err)
-		}
-		sink = append(sink, ddog)
-	}
 
 	if otlpEnabled {
 		util.Log().Infof("Initiating otlp metrics")
