@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -135,6 +136,7 @@ func TestUpdateFromStream(t *testing.T) {
 		tx:     mockTransparencyStore,
 		ch:     updateRequestChannel,
 	}
+	state := &shardState{}
 
 	for _, p := range testUpdateAccountPairs {
 		mockUpdater := new(mockLogUpdater)
@@ -149,10 +151,34 @@ func TestUpdateFromStream(t *testing.T) {
 			mockUpdater.On("update", mock.Anything, mock.Anything, pair.key, pair.value, mock.Anything, pair.preUpdateValue).Return(nil)
 		}
 
-		err = updateFromStream(context.Background(), marshaledData, mockUpdateHandler, mockUpdater)
+		err = updateFromStream(context.Background(), marshaledData, state, mockUpdateHandler, mockUpdater)
 
 		assert.NoError(t, err)
 		mockUpdater.AssertNumberOfCalls(t, "update", p.expectedNumUpdates)
 		mockUpdater.AssertExpectations(t)
+	}
+}
+
+func TestLockACI(t *testing.T) {
+	const parallel = 5
+
+	state := &shardState{}
+	defer state.lockACI([]byte("other"))()
+
+	counter := 0
+	output := make(chan int)
+	for range parallel {
+		go func() {
+			defer state.lockACI([]byte("label"))()
+			output <- counter
+			time.Sleep(1 * time.Millisecond)
+			counter++
+		}()
+	}
+
+	for i := range parallel {
+		if res := <-output; res != i {
+			t.Fatal("unexpected counter read")
+		}
 	}
 }

@@ -185,19 +185,18 @@ func main() {
 			s := &Streamer{config: config.APIConfig, tx: cachedTransparencyStore.Clone()}
 			go func() {
 
-				var streamStartTimestamp time.Time
+				var streamStartTimestamp *time.Time
 
 				if first && config.StreamConfig.TableName != "" {
 					// start the stream from when the backfill started, minus some padding for clock drift
-					streamStartTimestamp = time.Now().Add(-time.Minute * 15)
+					start := time.Now().Add(-time.Minute * 15)
+					streamStartTimestamp = &start
 
 					util.Log().Infof("Backfilling from DynamoDB table %q", config.StreamConfig.TableName)
 					if err := backfill(ctx, config.StreamConfig.TableName.String(), updateHandler); err != nil {
 						healthCheck.SetServingStatus(liveness, healthpb.HealthCheckResponse_NOT_SERVING)
 						util.Log().Fatalf("stream backfill failed: %v", err)
 					}
-				} else {
-					streamStartTimestamp = time.Now().Add(-config.StreamConfig.InitialHorizon)
 				}
 				util.Log().Infof("Starting stream processing from Kinesis stream %q", config.StreamConfig.Name.String())
 				s.run(ctx, config.StreamConfig.Name.String(), streamStartTimestamp, updateHandler)

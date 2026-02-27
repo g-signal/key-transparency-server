@@ -128,8 +128,7 @@ type FakeUpdates struct {
 type StreamConfig struct {
 	Name envstr `yaml:"name"`
 	// If Name is provided but TableName is not, backfill will not be attempted.
-	TableName      envstr        `yaml:"table"`
-	InitialHorizon time.Duration `yaml:"initial-horizon"`
+	TableName envstr `yaml:"table"`
 }
 
 type DatabaseConfig struct {
@@ -264,8 +263,6 @@ func Read(filename string) (*Config, error) {
 	if parsed.StreamConfig != nil {
 		if parsed.StreamConfig.Name == "" {
 			return nil, fmt.Errorf("field not provided: stream.name")
-		} else if parsed.StreamConfig.InitialHorizon == 0 {
-			return nil, fmt.Errorf("field not provided: stream.initial-horizon")
 		}
 	}
 
