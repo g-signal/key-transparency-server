@@ -26,8 +26,15 @@ public class FilterUsernameUpdatesHandler extends AbstractUpdatesHandler<Usernam
     super(kinesisClient, kinesisOutputStream);
   }
 
+  @Nullable
   UsernameConstraint fromDynamoDbImage(final Map<String, AttributeValue> image) {
-    return UsernameConstraint.fromItem(image);
+    final UsernameConstraint constraint = UsernameConstraint.fromItem(image);
+    // We only care about confirmed username constraint entries since those indicate a change on the account
+    // that must be propagated to the transparency log.
+    if (!constraint.confirmed()) {
+      return null;
+    }
+    return constraint;
   }
 
   KinesisRecord<UsernameConstraint> toKinesisRecord(final @Nullable UsernameConstraint prev, final @Nullable UsernameConstraint next) {

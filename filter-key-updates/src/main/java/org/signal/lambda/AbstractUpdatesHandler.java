@@ -88,20 +88,22 @@ public abstract class AbstractUpdatesHandler<T> implements
   private KinesisRecord<T> dbUpdateFor(final StreamRecord dbRecord) {
     Map<String, AttributeValue> oldImage = dbRecord.getOldImage();
     Map<String, AttributeValue> newImage = dbRecord.getNewImage();
-    if (oldImage == null || oldImage.isEmpty()) {
-      return toKinesisRecord(null, fromDynamoDbImage(newImage));
-    } else if (newImage == null || newImage.isEmpty()) {
-      return toKinesisRecord(fromDynamoDbImage(oldImage), null);
-    }
-    T oldConstraint = fromDynamoDbImage(oldImage);
-    T newConstraint = fromDynamoDbImage(newImage);
-    if (oldConstraint.equals(newConstraint)) {
+
+    final T prev = oldImage == null || oldImage.isEmpty() ? null : fromDynamoDbImage(oldImage);
+    final T next = newImage == null || newImage.isEmpty() ? null : fromDynamoDbImage(newImage);
+
+    if (prev == null && next == null) {
       return null;
-    } else {
-      return toKinesisRecord(oldConstraint, newConstraint);
     }
+
+    if (prev != null && prev.equals(next)) {
+      return null;
+    }
+
+    return toKinesisRecord(prev, next);
   }
 
+  @Nullable
   abstract T fromDynamoDbImage(Map<String, AttributeValue> image);
   abstract KinesisRecord<T> toKinesisRecord(@Nullable T prev, @Nullable T next);
 }

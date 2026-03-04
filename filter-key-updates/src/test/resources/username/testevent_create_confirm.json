@@ -15,24 +15,13 @@
         },
         "NewImage": {
           "F": {
-            "BOOL": false
+            "BOOL": true
           },
           "N": {
             "B": "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE="
           },
           "U": {
-            "B": "IiIiIiIiIiIiIiIiIiIiIg=="
-          }
-        },
-        "OldImage": {
-          "F": {
-            "BOOL": false
-          },
-          "N": {
-            "B": "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE="
-          },
-          "U": {
-            "B": "IiIiIiIiIiIiIiIiIiIiIg=="
+            "B": "BbBbBbBbBbBbBbBbBbBbBg=="
           }
         },
         "SizeBytes": 148,

@@ -57,22 +57,44 @@ class FilterUsernameUpdatesHandlerTest {
   private static Stream<Arguments> handleRequest() {
     return Stream.of(
         Arguments.of(
-            "username/testevent_creation.json",
-            new UsernameConstraint.Pair(
-                null,
-                new UsernameConstraint(USERNAME_HASH, PREV_ACI))),
-        Arguments.of(
-            "username/testevent_deletion.json",
-            new UsernameConstraint.Pair(
-                new UsernameConstraint(USERNAME_HASH, PREV_ACI),
+            "username/testevent_account_deletion.json", new UsernameConstraint.Pair(
+                new UsernameConstraint(USERNAME_HASH, PREV_ACI, true),
                 null)),
         Arguments.of(
-            "username/testevent_nochange.json", null),
+            "username/testevent_create_confirm.json", new UsernameConstraint.Pair(
+                null,
+                new UsernameConstraint(USERNAME_HASH, NEXT_ACI, true))),
         Arguments.of(
-            "username/testevent_modify.json",
+            "username/testevent_create_reserve.json", null),
+        Arguments.of(
+            "username/testevent_deletion_hold_expiring.json", null),
+        Arguments.of(
+            "username/testevent_modify_confirm.json",
             new UsernameConstraint.Pair(
-                new UsernameConstraint(USERNAME_HASH, PREV_ACI),
-                new UsernameConstraint(USERNAME_HASH, NEXT_ACI))));
+                null,
+                new UsernameConstraint(USERNAME_HASH, NEXT_ACI, true))),
+        Arguments.of(
+            "username/testevent_modify_unconfirm.json",
+            new UsernameConstraint.Pair(
+                new UsernameConstraint(USERNAME_HASH, PREV_ACI, true),
+                null)),
+        Arguments.of(
+            "username/testevent_modify_aci_changed_old_confirmed_new_confirmed.json",
+            new UsernameConstraint.Pair(
+                new UsernameConstraint(USERNAME_HASH, PREV_ACI, true),
+                new UsernameConstraint(USERNAME_HASH, NEXT_ACI, true))),
+        Arguments.of(
+            "username/testevent_modify_aci_changed_old_unconfirmed_new_confirmed.json",
+            new UsernameConstraint.Pair(
+                null,
+                new UsernameConstraint(USERNAME_HASH, NEXT_ACI, true))),
+        Arguments.of(
+            "username/testevent_modify_aci_changed_old_confirmed_new_unconfirmed.json",
+            new UsernameConstraint.Pair(
+                new UsernameConstraint(USERNAME_HASH, PREV_ACI, true),
+                null)),
+        Arguments.of(
+            "username/testevent_nochange.json", null));
   }
 
   UsernameConstraint.Pair mapWithoutException(SdkBytes in) {

@@ -15,18 +15,18 @@
         },
         "NewImage": {
           "F": {
-            "BOOL": false
+            "BOOL": true
           },
           "N": {
             "B": "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE="
           },
           "U": {
-            "B": "IiIiIiIiIiIiIiIiIiIiIg=="
+            "B": "BbBbBbBbBbBbBbBbBbBbBg=="
           }
         },
         "OldImage": {
           "F": {
-            "BOOL": false
+            "BOOL": true
           },
           "N": {
             "B": "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE="

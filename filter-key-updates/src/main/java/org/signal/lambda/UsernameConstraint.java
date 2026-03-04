@@ -16,12 +16,15 @@ import java.util.Map;
 
 record UsernameConstraint(
     byte[] usernameHash,
-    byte[] aci) {
+    byte[] aci,
+    boolean confirmed) {
 
   @VisibleForTesting
   static final String KEY_USERNAME_HASH = "N";
   @VisibleForTesting
   static final String ATTR_ACCOUNT_UUID = "U";
+  @VisibleForTesting
+  static final String ATTR_CONFIRMED = "F";
 
   @Override
   public boolean equals(final Object o) {
@@ -31,7 +34,8 @@ record UsernameConstraint(
       return false;
     UsernameConstraint usernameConstraint = (UsernameConstraint) o;
     return Arrays.equals(usernameHash, usernameConstraint.usernameHash) &&
-        Arrays.equals(aci, usernameConstraint.aci);
+        Arrays.equals(aci, usernameConstraint.aci) &&
+        confirmed == usernameConstraint.confirmed;
   }
 
   public record Pair(@Nullable UsernameConstraint prev, @Nullable UsernameConstraint next) implements KinesisRecord<UsernameConstraint> {
@@ -51,6 +55,7 @@ record UsernameConstraint(
   static UsernameConstraint fromItem(Map<String, AttributeValue> item) {
     Preconditions.checkNotNull(item.get(KEY_USERNAME_HASH));
     Preconditions.checkNotNull(item.get(ATTR_ACCOUNT_UUID));
+    Preconditions.checkNotNull(item.get(ATTR_CONFIRMED));
 
     final byte[] usernameHash = new byte[32];
 
@@ -60,6 +65,8 @@ record UsernameConstraint(
     final byte[] uuid = new byte[16];
     item.get(ATTR_ACCOUNT_UUID).getB().get(uuid);
 
-    return new UsernameConstraint(usernameHash, uuid);
+    final boolean confirmed = item.get(ATTR_CONFIRMED).getBOOL();
+
+    return new UsernameConstraint(usernameHash, uuid, confirmed);
   }
 }

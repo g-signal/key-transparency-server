@@ -14,11 +14,28 @@
           }
         },
         "NewImage": {
+          "F": {
+            "BOOL": true
+          },
           "N": {
             "B": "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE="
           },
           "U": {
-            "B": "IiIiIiIiIiIiIiIiIiIiIg=="
+            "B": "BbBbBbBbBbBbBbBbBbBbBg=="
+          }
+        },
+        "OldImage": {
+          "F": {
+            "BOOL": false
+          },
+          "N": {
+            "B": "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE="
+          },
+          "U": {
+            "B": "BbBbBbBbBbBbBbBbBbBbBg=="
+          },
+          "TTL": {
+            "N": "123456789"
           }
         },
         "SizeBytes": 148,

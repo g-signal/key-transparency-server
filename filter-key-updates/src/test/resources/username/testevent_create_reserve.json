@@ -22,17 +22,9 @@
           },
           "U": {
             "B": "IiIiIiIiIiIiIiIiIiIiIg=="
-          }
-        },
-        "OldImage": {
-          "F": {
-            "BOOL": false
           },
-          "N": {
-            "B": "EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE="
-          },
-          "U": {
-            "B": "IiIiIiIiIiIiIiIiIiIiIg=="
+          "TTL": {
+            "N": "123456789"
           }
         },
         "SizeBytes": 148,
