@@ -72,18 +72,6 @@ func mostRecentProofGuide(firstUpdatePosition, treeSize uint64) *proofGuide {
 	return &proofGuide{firstUpdatePosition: firstUpdatePosition, treeSize: treeSize, ids: frontier, frontier: true}
 }
 
-// versionProofGuide initializes the data structure used to search for a specific version of an index.
-// Unlike mostRecentProofGuide, it does not need to search the frontier nodes to determine targetCtr, and so it
-// begins its search with only the root node.
-func versionProofGuide(targetCtr uint32, firstUpdatePosition, treeSize uint64) *proofGuide {
-	return &proofGuide{
-		firstUpdatePosition: firstUpdatePosition,
-		treeSize:            treeSize,
-		targetCtr:           targetCtr,
-		ids:                 []uint64{math.Root(firstUpdatePosition, treeSize)},
-	}
-}
-
 // done returns true if the search proof is finished.
 // Otherwise, it looks up and stores the next entry ID to search.
 func (pg *proofGuide) done() (bool, error) {

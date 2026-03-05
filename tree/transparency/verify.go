@@ -177,12 +177,8 @@ func verifySearch(storage ClientStorage, req *pb.TreeSearchRequest, res *pb.Tree
 	leaves := make(map[uint64][]byte)
 	stepMap := make(map[uint64]*pb.ProofStep)
 
-	var guide *proofGuide
-	if req.Version == nil {
-		guide = mostRecentProofGuide(res.Search.Pos, treeSize)
-	} else {
-		guide = versionProofGuide(*req.Version, res.Search.Pos, treeSize)
-	}
+	guide := mostRecentProofGuide(res.Search.Pos, treeSize)
+
 	for {
 		done, err := guide.done()
 		if err != nil {

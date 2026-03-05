@@ -29,9 +29,7 @@ const IndexLength = 32
 // SearchResult is the output from executing a search in a specific prefix tree for an index.
 //
 // There are two use cases for searching the prefix tree:
-//  1. ["Indexing"] To find the log entry positions of:
-//  1. the first update, and
-//  2. the most recent update OR the update corresponding to the desired version.
+//  1. ["Indexing"] To find the log entry positions of the first update and the most recent update.
 //     This allows the server to conduct a more efficient binary search in the *log tree* for that log entry position.
 //     In this use case, the server will always start out searching the latest log entry and will only use FirstUpdatePosition and LatestUpdatePosition
 //     from the search result.
@@ -102,37 +100,6 @@ func (t *Tree) BatchExec(searches []*Search) ([]*SearchResult, error) {
 		})
 	}
 	return out, nil
-}
-
-// SearchForVersion executes a search in the tree of the given size for the index with a counter value
-// equal to indexVersion.
-// The SearchResult returns the latest update position *in the last tree size that was searched*, which is not necessarily
-// the original treeSize.
-func (t *Tree) SearchForVersion(treeSize uint64, index []byte, indexVersion uint32) (*SearchResult, error) {
-	var res *SearchResult
-	nextTreeSizeToSearch := treeSize
-
-	// Search for the index with the requested indexVersion counter by recursively searching in earlier
-	// and earlier entries of the log for the most recent update to the given index, until we find the desired index version
-	// or we get back a "not found" error.
-	var err error
-	for {
-		res, err = t.Search(nextTreeSizeToSearch, index)
-		if err != nil {
-			return nil, fmt.Errorf("running versioned search: %w", err)
-		}
-
-		if res.Counter != indexVersion {
-			// Tree size is one-indexed, but positions are zero-indexed. For example,
-			// if index A's latest update position is 8, that means that that update was the 9th entry in the tree.
-			// So in the next iteration, we want to search in the tree with 8 entries for the latest update to index A.
-			nextTreeSizeToSearch = res.LatestUpdatePosition
-		} else {
-			break
-		}
-	}
-
-	return res, nil
 }
 
 // Search executes a search for `index` in the requested tree.

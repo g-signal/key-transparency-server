@@ -82,7 +82,6 @@ message Consistency {
 message TreeSearchRequest {
     bytes search_key = 1;
     Consistency consistency = 2;
-    optional uint32 version = 3;
 }
 
 // TreeSearchResponse is the output of executing a search on the tree.

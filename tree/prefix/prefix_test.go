@@ -23,58 +23,6 @@ func random() []byte {
 	return out
 }
 
-func TestPrefixTreeSearchForVersion(t *testing.T) {
-	var (
-		tree      = NewTree(make([]byte, 16), db.NewMemoryTransparencyStore().PrefixStore())
-		repeatKey = random()
-		// The i-th value is the update position for version i of repeatKey
-		versionPositions []uint64
-
-		randomKeys [][]byte
-		treeSize   uint64
-	)
-
-	for i := 0; i < 1000; i++ {
-		dice := mrand.Intn(4)
-
-		if dice == 0 && len(versionPositions) > 0 { // Search for a random version of the key
-			version := uint32(mrand.Intn(len(versionPositions)))
-
-			res, err := tree.SearchForVersion(treeSize, repeatKey, version)
-			if err != nil {
-				t.Fatal(err)
-			} else if res.Counter != version {
-				t.Fatal("unexpected value for version counter")
-			} else if res.FirstUpdatePosition != versionPositions[0] {
-				t.Fatal("unexpected value for first update position")
-			} else if res.LatestUpdatePosition != versionPositions[version] {
-				t.Fatal("unexpected value for version update position")
-			}
-		} else if dice == 1 && (len(randomKeys) > 0 || len(versionPositions) > 0) { // Insert a fake entry.
-			_, err := tree.InsertFake(treeSize)
-			if err != nil {
-				t.Fatal(err)
-			}
-			treeSize = treeSize + 1
-		} else if dice == 2 { // Insert a new index.
-			randomKey := random()
-			_, _, err := tree.Insert(treeSize, randomKey, make([]byte, 32), false)
-			if err != nil {
-				t.Fatal(err)
-			}
-			randomKeys = append(randomKeys, randomKey)
-			treeSize = treeSize + 1
-		} else if dice == 3 { // Insert repeatKey again
-			_, _, err := tree.Insert(treeSize, repeatKey, make([]byte, 32), false)
-			if err != nil {
-				t.Fatal(err)
-			}
-			versionPositions = append(versionPositions, treeSize)
-			treeSize = treeSize + 1
-		}
-	}
-}
-
 func TestPrefixTree(t *testing.T) {
 	var (
 		tree = NewTree(make([]byte, 16), db.NewMemoryTransparencyStore().PrefixStore())

@@ -242,9 +242,9 @@ func (t *Tree) updatedAuditorHeads(treeSize uint64) (map[string]*db.AuditorTreeH
 	return auditors, nil
 }
 
-func (t *Tree) search(index [32]byte, firstUpdatePosition, latestUpdatePosition uint64, mostRecent bool) (*pb.SearchProof, error) {
+func (t *Tree) search(index [32]byte, firstUpdatePosition, latestUpdatePosition uint64) (*pb.SearchProof, error) {
 	// Determine the path of our binary search.
-	ids, err := searchPath(firstUpdatePosition, latestUpdatePosition, t.latest.TreeSize, mostRecent)
+	ids, err := searchPath(firstUpdatePosition, latestUpdatePosition, t.latest.TreeSize)
 	if err != nil {
 		return nil, err
 	}
@@ -298,27 +298,20 @@ func (t *Tree) Search(req *pb.TreeSearchRequest) (*pb.TreeSearchResponse, error)
 	index, vrfProof := t.config.VrfKey.ECVRFProve(req.SearchKey)
 
 	// Find the position of the first occurrence of the index in the log, and the
-	// position of the most recent occurrence of the index in the log OR the
-	// position corresponding to the requested version.
-	var res *prefix.SearchResult
-	var err error
-	if req.Version == nil {
-		res, err = t.prefixTree.Search(t.latest.TreeSize, index[:])
-	} else {
-		res, err = t.prefixTree.SearchForVersion(t.latest.TreeSize, index[:], *req.Version)
-	}
+	// position of the most recent occurrence of the index in the log.
+	res, err := t.prefixTree.Search(t.latest.TreeSize, index[:])
 	if err != nil {
 		return nil, err
 	}
 
-	firstUpdatePosition, updatePosition := res.FirstUpdatePosition, res.LatestUpdatePosition
+	firstUpdatePosition, latestUpdatePosition := res.FirstUpdatePosition, res.LatestUpdatePosition
 
 	// Fetch the search proof and the update value.
-	searchProof, err := t.search(index, firstUpdatePosition, updatePosition, req.Version == nil)
+	searchProof, err := t.search(index, firstUpdatePosition, latestUpdatePosition)
 	if err != nil {
 		return nil, err
 	}
-	raw, err := t.tx.Get(updatePosition)
+	raw, err := t.tx.Get(latestUpdatePosition)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +330,7 @@ func (t *Tree) Search(req *pb.TreeSearchRequest) (*pb.TreeSearchResponse, error)
 		VrfProof: vrfProof,
 		Search:   searchProof,
 
-		Opening: computeOpening(t.config.OpeningKey, updatePosition),
+		Opening: computeOpening(t.config.OpeningKey, latestUpdatePosition),
 		Value:   value,
 	}, nil
 }
@@ -421,7 +414,7 @@ func (t *Tree) PostUpdate(state *PostUpdateState) (*pb.UpdateResponse, error) {
 	t.latest = state.head
 
 	// Build a search proof for the newly-added value.
-	searchProof, err := t.search(state.pre.Index, state.sr.FirstUpdatePosition, state.sr.LatestUpdatePosition, true)
+	searchProof, err := t.search(state.pre.Index, state.sr.FirstUpdatePosition, state.sr.LatestUpdatePosition)
 	if err != nil {
 		return nil, err
 	}
@@ -1047,19 +1040,10 @@ func (t *Tree) SetAuditorHead(head *pb.AuditorTreeHead, auditorName string) erro
 // `firstUpdatePosition` is the position of the first occurrence of the index in the tree,
 // `latestUpdatePosition` is the position of the most recent occurrence of the index in the tree, and
 // `treeSize` is the current size of the tree.
-func searchPath(firstUpdatePosition, latestUpdatePosition, treeSize uint64, mostRecent bool) ([]uint64, error) {
+func searchPath(firstUpdatePosition, latestUpdatePosition, treeSize uint64) ([]uint64, error) {
 	var ids []uint64
 
-	var guide *proofGuide
-
-	if mostRecent {
-		// The target counter is always 1, but the proof guide for the most recent version has to "prove" this by
-		// first searching the frontier nodes of the implicit binary search tree instead of hardcoding it like
-		// the versioned proof guide.
-		guide = mostRecentProofGuide(firstUpdatePosition, treeSize)
-	} else {
-		guide = versionProofGuide(1, firstUpdatePosition, treeSize)
-	}
+	guide := mostRecentProofGuide(firstUpdatePosition, treeSize)
 
 	for {
 		done, err := guide.done()

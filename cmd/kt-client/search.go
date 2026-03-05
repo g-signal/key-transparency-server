@@ -22,24 +22,15 @@ func constructSearchRequest(args QueryArgs) *pb.SearchRequest {
 		Consistency:    consistency(last),
 	}
 
-	if args.AciVersion != nil {
-		req.AciVersion = args.AciVersion
-	}
 	if args.E164 != "" {
 		req.E164SearchRequest = &pb.E164SearchRequest{
 			E164:                  &args.E164,
 			UnidentifiedAccessKey: args.UnidentifiedAccessKey,
 		}
-		if args.E164Version != nil {
-			req.E164Version = args.E164Version
-		}
 	}
 
 	if args.UsernameHash != nil {
 		req.UsernameHash = args.UsernameHash
-		if args.UsernameHashVersion != nil {
-			req.UsernameHashVersion = args.UsernameHashVersion
-		}
 	}
 	return req
 }
@@ -88,20 +79,20 @@ func handleSearch(client pb.KeyTransparencyQueryServiceClient) {
 	}
 
 	allVerificationsSuccessful := true
-	if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.AciPrefix, args.Aci, args.AciVersion), createTreeSearchResponse(res.Aci, res.TreeHead)); err != nil {
+	if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.AciPrefix, args.Aci), createTreeSearchResponse(res.Aci, res.TreeHead)); err != nil {
 		p.Printf("ACI verification failed: %v\n", err)
 		allVerificationsSuccessful = false
 	}
 
 	if res.E164 != nil {
-		if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.NumberPrefix, []byte(*e164), args.E164Version), createTreeSearchResponse(res.E164, res.TreeHead)); err != nil {
+		if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.NumberPrefix, []byte(*e164)), createTreeSearchResponse(res.E164, res.TreeHead)); err != nil {
 			p.Printf("E164 verification failed: %v\n", err)
 			allVerificationsSuccessful = false
 		}
 	}
 
 	if res.UsernameHash != nil {
-		if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.UsernameHashPrefix, args.UsernameHash, args.UsernameHashVersion), createTreeSearchResponse(res.UsernameHash, res.TreeHead)); err != nil {
+		if err := transparency.VerifySearch(newStore(), createIdentifierSearchRequest(shared.UsernameHashPrefix, args.UsernameHash), createTreeSearchResponse(res.UsernameHash, res.TreeHead)); err != nil {
 			p.Printf("Username hash verification failed: %v\n", err)
 			allVerificationsSuccessful = false
 		}
@@ -112,19 +103,15 @@ func handleSearch(client pb.KeyTransparencyQueryServiceClient) {
 	}
 }
 
-func createIdentifierSearchRequest(prefix byte, identifier []byte, version *uint32) *tpb.TreeSearchRequest {
-	return createTreeSearchRequest(append([]byte{prefix}, identifier...), version)
+func createIdentifierSearchRequest(prefix byte, identifier []byte) *tpb.TreeSearchRequest {
+	return createTreeSearchRequest(append([]byte{prefix}, identifier...))
 }
 
-func createTreeSearchRequest(key []byte, version *uint32) *tpb.TreeSearchRequest {
-	req := &tpb.TreeSearchRequest{
+func createTreeSearchRequest(key []byte) *tpb.TreeSearchRequest {
+	return &tpb.TreeSearchRequest{
 		SearchKey:   key,
 		Consistency: consistency(last),
 	}
-	if version != nil {
-		req.Version = version
-	}
-	return req
 }
 
 func createTreeSearchResponse(response *pb.CondensedTreeSearchResponse, treeHead *tpb.FullTreeHead) *tpb.TreeSearchResponse {
