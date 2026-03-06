@@ -1,0 +1,147 @@
+name: Build and push to Docker Hub
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker tag to build and push'
+        required: true
+        default: 'latest'
+
+jobs:
+  build-and-push-dockerhub:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version-file: ./filter-key-updates/.java-version
+          cache: 'maven'
+
+      - name: Test Go code
+        run: go test ./...
+
+      - name: Test Java Lambda code
+        working-directory: ./filter-key-updates
+        run: ./mvnw test
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
+        with:
+          images: ${{ vars.DOCKERHUB_REPOSITORY }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
+
+      - name: Build filter key updates Lambda JAR
+        working-directory: ./filter-key-updates
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION_TAG="${{ github.ref_name }}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION_TAG="${{ github.event.inputs.tag }}"
+          else
+            VERSION_TAG="${{ github.sha }}"
+          fi
+          echo "Building Lambda with version: $VERSION_TAG"
+          ./mvnw -e -B verify -Djgitver.use-version="$VERSION_TAG"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            GO_VERSION=${{ steps.setup-go.outputs.go-version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate build summary
+        run: |
+          echo "## 🐳 Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Images Built and Pushed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Repository | Tags |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ${{ vars.DOCKERHUB_REPOSITORY }} | ${{ steps.meta.outputs.tags }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Build Details" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Go Version**: ${{ steps.setup-go.outputs.go-version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Java Version**: $(cat ./filter-key-updates/.java-version)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platforms**: linux/amd64, linux/arm64" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "- **Release Tag**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "- **Manual Tag**: ${{ github.event.inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Usage" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "docker pull ${{ vars.DOCKERHUB_REPOSITORY }}:${{ github.event.inputs.tag || github.ref_name || 'latest' }}" >> $GITHUB_STEP_SUMMARY
+          echo "docker run --rm ${{ vars.DOCKERHUB_REPOSITORY }}:${{ github.event.inputs.tag || github.ref_name || 'latest' }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Lambda artifacts (on release)
+        if: github.event_name == 'release'
+        working-directory: ./filter-key-updates
+        run: |
+          echo "🎯 Lambda JAR built: target/filter-key-updates-lambda-${{ github.ref_name }}.jar"
+          ls -la target/filter-key-updates-lambda-*.jar
+          echo "ℹ️ Lambda artifact ready for deployment"
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: build-and-push-dockerhub
+    if: github.event_name == 'release'
+
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@f78e9ecf42a6c6a2bf60f5234d2b1a24de1a9136 # v0.30.0
+        with:
+          image-ref: '${{ vars.DOCKERHUB_REPOSITORY }}:${{ github.ref_name }}'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@662472033e021d55d94146f66f6058822b0b39fd # v3.27.0
+        with:
+          sarif_file: 'trivy-results.sarif'
