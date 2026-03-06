@@ -1,0 +1,43 @@
+name: Build and push Docker image to Docker Hub
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout main project
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Go
+        id: setup-go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+
+      - name: Set up JDK
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+        with:
+          distribution: 'temurin'
+          java-version-file: ./filter-key-updates/.java-version
+          cache: 'maven'
+
+      - name: Test Go
+        run: go test ./...
+
+      - name: Build and push the Docker image of the KT server
+        run: |
+          docker build . --file docker/Dockerfile --build-arg GO_VERSION=${{ steps.setup-go.outputs.go-version }} \
+            --tag "${{ secrets.DOCKERHUB_USERNAME }}/key-transparency-server:${GITHUB_REF_NAME}"
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/key-transparency-server:${GITHUB_REF_NAME}"
