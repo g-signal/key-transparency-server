@@ -41,8 +41,3 @@ jobs:
           docker build . --file docker/Dockerfile --build-arg GO_VERSION=${{ steps.setup-go.outputs.go-version }} \
             --tag "${{ secrets.DOCKERHUB_USERNAME }}/key-transparency-server:${GITHUB_REF_NAME}"
           docker push "${{ secrets.DOCKERHUB_USERNAME }}/key-transparency-server:${GITHUB_REF_NAME}"
-
-      - name: Build filter key updates lambda artifact
-        working-directory: ./filter-key-updates
-        run: |
-          ./mvnw -e -B verify -Djgitver.use-version=${{ github.ref_name }}
